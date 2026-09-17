@@ -96,7 +96,7 @@ export class AnalysisError extends Error {
 
   constructor(
     message: string,
-    options: { code?: string; status?: number; details?: Record<string, unknown> } = {},
+    options: { code?: string | undefined; status?: number | undefined; details?: Record<string, unknown> | undefined } = {},
   ) {
     super(message);
     this.name = "AnalysisError";
