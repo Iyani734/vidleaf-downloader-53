@@ -86,13 +86,13 @@ export interface VidLeafService {
 }
 
 const API_PREFIX = "/api/v1";
-const API_BASE = (import.meta.env.VITE_VIDLEAF_API_URL ?? "").replace(/\/+$/, "");
+const API_BASE = (import.meta.env["VITE_VIDLEAF_API_URL"] ?? "").replace(/\/+$/, "");
 const HISTORY_KEY = "vidleaf.history.v2";
 
 export class AnalysisError extends Error {
-  code?: string;
-  status?: number;
-  details?: Record<string, unknown>;
+  code?: string | undefined;
+  status?: number | undefined;
+  details?: Record<string, unknown> | undefined;
 
   constructor(
     message: string,

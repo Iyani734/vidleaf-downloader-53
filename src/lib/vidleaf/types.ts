@@ -11,10 +11,10 @@ export interface QualityOption {
   height: number; // 1080, 0 for audio
   format: FileFormat;
   sizeBytes: number;
-  fps?: number;
+  fps?: number | undefined;
   kind: MediaKind;
   available: boolean;
-  recommended?: boolean;
+  recommended?: boolean | undefined;
 }
 
 export interface VideoInfo {
@@ -25,7 +25,7 @@ export interface VideoInfo {
   thumbnail: string;
   durationSeconds: number;
   uploadedAt: string; // ISO
-  views?: number;
+  views?: number | undefined;
   qualities: QualityOption[];
 }
 
@@ -55,10 +55,10 @@ export interface ActiveDownload {
   speedBps: number;
   status: DownloadStatus;
   startedAt: number;
-  downloadUrl?: string;
-  downloadTokenExpiresAt?: string;
-  error?: string;
-  canPause?: boolean;
+  downloadUrl?: string | undefined;
+  downloadTokenExpiresAt?: string | undefined;
+  error?: string | undefined;
+  canPause?: boolean | undefined;
 }
 
 export interface HistoryItem {
@@ -75,5 +75,5 @@ export interface HistoryItem {
   durationSeconds: number;
   completedAt: number; // epoch ms
   downloadSeconds: number;
-  downloadUrl?: string;
+  downloadUrl?: string | undefined;
 }
