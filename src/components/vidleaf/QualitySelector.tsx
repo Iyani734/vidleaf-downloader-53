@@ -1,92 +1,97 @@
-import { Check, Music4, Video, Ban } from "lucide-react";
-import { formatSize } from "@/lib/vidleaf/format";
+import { Check, FileVideo, Music, Sparkles } from "lucide-react";
 import type { QualityOption } from "@/lib/vidleaf/types";
+import { formatBytes } from "@/lib/vidleaf/format";
+import { cn } from "@/lib/utils";
 
-interface Props {
-  options: QualityOption[];
-  selectedId: string;
+interface QualitySelectorProps {
+  qualities: QualityOption[];
+  selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-export function QualitySelector({ options, selectedId, onSelect }: Props) {
-  if (options.length === 0) {
+export function QualitySelector({ qualities, selectedId, onSelect }: QualitySelectorProps) {
+  if (qualities.length === 0) {
     return (
-      <div className="surface-card p-8 text-center">
-        <Ban className="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
-        <h3 className="mt-3 font-bold text-foreground">No formats available</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          This link doesn't expose any downloadable streams. Try a different video.
+      <div className="surface-panel flex flex-col items-center gap-2 p-8 text-center">
+        <FileVideo className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+        <h3 className="text-base font-semibold">No formats available</h3>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          We couldn&apos;t find any downloadable formats for this link. Try a different public
+          video.
         </p>
       </div>
     );
   }
 
   return (
-    <fieldset className="surface-card p-4 sm:p-5">
-      <legend className="px-1 text-sm font-bold uppercase tracking-wide text-muted-foreground">
-        Choose quality
-      </legend>
+    <fieldset className="surface-panel p-5">
+      <legend className="px-1 text-base font-bold text-foreground">Choose a quality</legend>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Exact resolution and format are shown. The highest detected option is recommended.
+      </p>
       <div
         role="radiogroup"
         aria-label="Download quality"
-        className="mt-3 max-h-[26rem] space-y-2 overflow-y-auto pr-1"
+        className="grid max-h-[26rem] gap-2 overflow-y-auto pr-1"
       >
-        {options.map((opt) => {
-          const selected = opt.id === selectedId;
-          const Icon = opt.kind === "audio" ? Music4 : Video;
+        {qualities.map((q) => {
+          const selected = q.id === selectedId;
+          const Icon = q.kind === "audio" ? Music : FileVideo;
           return (
             <button
-              key={opt.id}
+              key={q.id}
               type="button"
               role="radio"
               aria-checked={selected}
-              disabled={!opt.available}
-              onClick={() => onSelect(opt.id)}
-              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-55 ${
+              disabled={!q.available}
+              onClick={() => onSelect(q.id)}
+              className={cn(
+                "group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all",
                 selected
-                  ? "border-primary bg-primary-soft shadow-soft"
-                  : "border-border bg-card hover:border-primary/50 hover:bg-primary-soft/60"
-              }`}
+                  ? "border-primary bg-secondary shadow-soft"
+                  : "border-border bg-card hover:border-primary/50 hover:bg-secondary/60",
+                !q.available && "cursor-not-allowed opacity-45 hover:border-border hover:bg-card",
+              )}
             >
               <span
-                aria-hidden="true"
-                className={`grid size-10 shrink-0 place-items-center rounded-lg ${
-                  selected ? "bg-primary text-primary-foreground" : "bg-secondary text-primary-dark"
-                }`}
+                className={cn(
+                  "grid h-10 w-10 shrink-0 place-items-center rounded-lg transition-colors",
+                  selected ? "bg-primary text-primary-foreground" : "bg-secondary text-primary",
+                )}
               >
-                <Icon className="size-5" />
+                <Icon className="h-5 w-5" aria-hidden="true" />
               </span>
 
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-foreground">{opt.label}</span>
-                  {opt.recommended && (
-                    <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary-foreground">
-                      Recommended
+                  <span className="truncate text-sm font-semibold text-foreground">{q.label}</span>
+                  {q.recommended && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-dark">
+                      <Sparkles className="h-3 w-3" aria-hidden="true" /> Highest detected
                     </span>
                   )}
-                  {!opt.available && (
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  {!q.available && (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
                       Unavailable
                     </span>
                   )}
                 </span>
-                <span className="mt-0.5 block truncate text-sm text-muted-foreground">
-                  {opt.resolution} · {opt.format}
-                  {opt.fps ? ` · ${opt.fps} fps` : ""}
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                  {!q.available ? (
+                    "Not detected for this video"
+                  ) : (
+                    <>
+                      {q.kind === "video" ? `${q.resolution} - ` : ""}
+                      {q.format}
+                      {q.fps ? ` - ${q.fps} fps` : ""} - ~{formatBytes(q.sizeBytes)}
+                    </>
+                  )}
                 </span>
               </span>
 
-              <span className="shrink-0 text-right">
-                <span className="block text-sm font-semibold text-foreground">
-                  {formatSize(opt.sizeMB)}
-                </span>
-                {selected && (
-                  <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                    <Check className="size-3.5" aria-hidden="true" /> Selected
-                  </span>
-                )}
-              </span>
+              {selected && (
+                <Check className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+              )}
             </button>
           );
         })}

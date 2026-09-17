@@ -1,78 +1,150 @@
-import { ArrowDownToLine, Inbox } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Activity, History } from "lucide-react";
+import type { ActiveDownload, HistoryItem } from "@/lib/vidleaf/types";
 import { ActiveDownloadCard } from "./ActiveDownloadCard";
 import { DownloadHistory } from "./DownloadHistory";
-import { useDownloads } from "@/lib/vidleaf/store";
-import type { HistoryItem } from "@/lib/vidleaf/types";
+import { cn } from "@/lib/utils";
 
-export function DownloadTabs({
-  onDownloadAgain,
-}: {
+interface Props {
+  active: ActiveDownload[];
+  history: HistoryItem[];
+  activeCount: number;
+  onTogglePause: (id: string) => void;
+  onCancel: (id: string) => void;
+  onRetry: (id: string) => void;
+  onDismiss: (id: string) => void;
   onDownloadAgain: (item: HistoryItem) => void;
-}) {
-  const { active, togglePause, cancelDownload, retryDownload, dismissDownload } = useDownloads();
-  const runningCount = active.filter(
-    (d) => d.status === "downloading" || d.status === "preparing" || d.status === "processing",
-  ).length;
+  onCopyLink: (item: HistoryItem) => void;
+  onRemoveHistory: (id: string) => void;
+  onClearHistory: () => void;
+}
+
+export function DownloadTabs(props: Props) {
+  const [tab, setTab] = useState<"active" | "history">("active");
 
   return (
-    <Tabs defaultValue="downloading" className="w-full">
-      <TabsList className="h-12 w-full rounded-xl bg-secondary p-1 sm:w-auto">
-        <TabsTrigger value="downloading" className="h-10 flex-1 rounded-lg px-4 text-sm font-semibold sm:flex-none">
-          Downloading
-          <span
-            className={`ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${
-              runningCount > 0
-                ? "bg-primary text-primary-foreground"
-                : "bg-border text-muted-foreground"
-            }`}
-          >
-            {runningCount}
+    <section id="my-downloads" className="scroll-mt-24 py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <header className="max-w-2xl">
+          <span className="text-xs font-bold uppercase tracking-widest text-primary">
+            My Downloads
           </span>
-        </TabsTrigger>
-        <TabsTrigger value="history" className="h-10 flex-1 rounded-lg px-4 text-sm font-semibold sm:flex-none">
-          Download History
-        </TabsTrigger>
-      </TabsList>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Track everything in one place
+          </h2>
+        </header>
 
-      <TabsContent value="downloading" className="mt-5">
-        {active.length === 0 ? (
-          <div className="surface-card flex flex-col items-center px-6 py-14 text-center">
-            <span className="grid size-16 place-items-center rounded-2xl bg-primary-soft text-primary">
-              <Inbox className="size-8" aria-hidden="true" />
-            </span>
-            <h3 className="mt-4 font-display text-lg font-bold text-foreground">
-              Nothing downloading right now
-            </h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Paste a link above, pick a quality, and your progress will show up here.
-            </p>
-            <Button asChild className="mt-5 h-11 rounded-xl">
-              <a href="#downloader">
-                <ArrowDownToLine className="size-4" aria-hidden="true" /> Go to downloader
-              </a>
-            </Button>
-          </div>
-        ) : (
-          <ul className="space-y-3" aria-live="polite">
-            {active.map((d) => (
-              <ActiveDownloadCard
-                key={d.id}
-                download={d}
-                onTogglePause={togglePause}
-                onCancel={cancelDownload}
-                onRetry={retryDownload}
-                onDismiss={dismissDownload}
+        <div
+          role="tablist"
+          aria-label="Downloads"
+          className="mt-6 inline-flex w-full gap-1 rounded-2xl border border-border bg-card p-1 shadow-soft sm:w-auto"
+        >
+          <TabButton
+            id="tab-active"
+            controls="panel-active"
+            selected={tab === "active"}
+            onClick={() => setTab("active")}
+            icon={<Activity className="h-4 w-4" aria-hidden="true" />}
+            label="Downloading"
+            badge={props.activeCount}
+          />
+          <TabButton
+            id="tab-history"
+            controls="panel-history"
+            selected={tab === "history"}
+            onClick={() => setTab("history")}
+            icon={<History className="h-4 w-4" aria-hidden="true" />}
+            label="Download History"
+          />
+        </div>
+
+        <div className="mt-6">
+          {tab === "active" ? (
+            <div id="panel-active" role="tabpanel" aria-labelledby="tab-active" className="space-y-3">
+              {props.active.length === 0 ? (
+                <div className="surface-panel flex flex-col items-center gap-3 p-12 text-center">
+                  <span className="grid h-14 w-14 place-items-center rounded-2xl bg-secondary text-primary">
+                    <Activity className="h-7 w-7" aria-hidden="true" />
+                  </span>
+                  <h3 className="text-base font-bold">Nothing downloading right now</h3>
+                  <p className="max-w-sm text-sm text-muted-foreground">
+                    Start a download from the box above and live progress shows up here.
+                  </p>
+                </div>
+              ) : (
+                props.active.map((item) => (
+                  <ActiveDownloadCard
+                    key={item.id}
+                    item={item}
+                    onTogglePause={props.onTogglePause}
+                    onCancel={props.onCancel}
+                    onRetry={props.onRetry}
+                    onDismiss={props.onDismiss}
+                  />
+                ))
+              )}
+            </div>
+          ) : (
+            <div id="panel-history" role="tabpanel" aria-labelledby="tab-history">
+              <DownloadHistory
+                history={props.history}
+                onDownloadAgain={props.onDownloadAgain}
+                onCopyLink={props.onCopyLink}
+                onRemove={props.onRemoveHistory}
+                onClear={props.onClearHistory}
               />
-            ))}
-          </ul>
-        )}
-      </TabsContent>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-      <TabsContent value="history" className="mt-5">
-        <DownloadHistory onDownloadAgain={onDownloadAgain} />
-      </TabsContent>
-    </Tabs>
+function TabButton({
+  id,
+  controls,
+  selected,
+  onClick,
+  icon,
+  label,
+  badge,
+}: {
+  id: string;
+  controls: string;
+  selected: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
+}) {
+  return (
+    <button
+      type="button"
+      id={id}
+      role="tab"
+      aria-selected={selected}
+      aria-controls={controls}
+      onClick={onClick}
+      className={cn(
+        "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all sm:flex-none",
+        selected
+          ? "bg-primary text-primary-foreground shadow-soft"
+          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+      )}
+    >
+      {icon}
+      {label}
+      {badge !== undefined && badge > 0 && (
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[11px] font-bold",
+            selected ? "bg-primary-dark text-primary-foreground" : "bg-primary/10 text-primary-dark",
+          )}
+        >
+          {badge}
+        </span>
+      )}
+    </button>
   );
 }

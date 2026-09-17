@@ -1,0 +1,64 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATA_DIR: /var/lib/vidleaf
+    ports:
+      - "8000:8000"
+    volumes:
+      - vidleaf_data:/var/lib/vidleaf
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATA_DIR: /var/lib/vidleaf
+    volumes:
+      - vidleaf_data:/var/lib/vidleaf
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATA_DIR: /var/lib/vidleaf
+    command: ["/bin/sh", "-c", "while true; do python -m app.cleanup; sleep 300; done"]
+    volumes:
+      - vidleaf_data:/var/lib/vidleaf
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  vidleaf_data:
