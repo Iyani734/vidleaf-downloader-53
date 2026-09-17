@@ -1,62 +1,75 @@
-import { ShieldCheck } from "lucide-react";
-import { VidLeafLogo } from "./VidLeafLogo";
+import { Logo } from "./Logo";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-primary-soft/60">
-      <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
-        <div className="grid gap-8 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <div className="max-w-sm">
-            <VidLeafLogo />
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              A clean, ad-free way to save public videos in the quality you actually want — with
-              clear estimates and a tidy download history.
-            </p>
-          </div>
-
-          <nav aria-label="Footer" className="grid grid-cols-2 gap-6 text-sm">
-            <div>
-              <h2 className="font-bold text-foreground">Product</h2>
-              <ul className="mt-3 space-y-2">
-                <li>
-                  <a href="#downloader" className="text-muted-foreground hover:text-primary-dark">
-                    Downloader
-                  </a>
-                </li>
-                <li>
-                  <a href="#faq" className="text-muted-foreground hover:text-primary-dark">
-                    FAQ
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h2 className="font-bold text-foreground">Legal</h2>
-              <ul className="mt-3 space-y-2">
-                <li>
-                  <a href="#faq" className="text-muted-foreground hover:text-primary-dark">
-                    Terms
-                  </a>
-                </li>
-                <li>
-                  <a href="#faq" className="text-muted-foreground hover:text-primary-dark">
-                    Privacy
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </nav>
+    <footer className="border-t border-border bg-secondary/70">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr]">
+        <div>
+          <Logo />
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+            VidLeaf is a clean, ad-free interface for saving public videos in the quality you
+            actually want.
+          </p>
         </div>
 
-        <p className="mt-10 flex items-start gap-2 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-          Please download only content you own or have permission to use, and respect each
-          platform's terms of service.
-        </p>
+        <nav aria-label="Product">
+          <h2 className="text-sm font-bold text-foreground">Product</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li>
+              <a
+                href="#downloader"
+                className="text-muted-foreground transition-colors hover:text-primary-dark"
+              >
+                Downloader
+              </a>
+            </li>
+            <li>
+              <a
+                href="#my-downloads"
+                className="text-muted-foreground transition-colors hover:text-primary-dark"
+              >
+                My Downloads
+              </a>
+            </li>
+            <li>
+              <a
+                href="#faq"
+                className="text-muted-foreground transition-colors hover:text-primary-dark"
+              >
+                FAQ
+              </a>
+            </li>
+          </ul>
+        </nav>
 
-        <p className="mt-6 text-sm text-muted-foreground">
-          © {new Date().getFullYear()} VidLeaf. All rights reserved.
-        </p>
+        <nav aria-label="Legal">
+          <h2 className="text-sm font-bold text-foreground">Legal</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li>
+              <a
+                href="#faq"
+                className="text-muted-foreground transition-colors hover:text-primary-dark"
+              >
+                Terms
+              </a>
+            </li>
+            <li>
+              <a
+                href="#faq"
+                className="text-muted-foreground transition-colors hover:text-primary-dark"
+              >
+                Privacy
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+
+      <div className="border-t border-border">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>(c) {new Date().getFullYear()} VidLeaf. Real downloads powered by the VidLeaf API.</p>
+          <p>Please download only content you own or have permission to use.</p>
+        </div>
       </div>
     </footer>
   );

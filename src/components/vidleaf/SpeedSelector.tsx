@@ -1,56 +1,79 @@
 import { Gauge } from "lucide-react";
-import { SPEED_PRESETS } from "@/lib/vidleaf/mockData";
-import type { SpeedPresetId } from "@/lib/vidleaf/types";
+import { cn } from "@/lib/utils";
 
-interface Props {
-  presetId: SpeedPresetId;
-  customMbps: number;
-  onPresetChange: (id: SpeedPresetId) => void;
-  onCustomChange: (mbps: number) => void;
+export const SPEED_PRESETS = [
+  { id: "slow", label: "Slow", mbps: 5 },
+  { id: "average", label: "Average", mbps: 20 },
+  { id: "fast", label: "Fast", mbps: 50 },
+  { id: "veryfast", label: "Very fast", mbps: 100 },
+] as const;
+
+interface SpeedSelectorProps {
+  speedMbps: number;
+  custom: boolean;
+  onChange: (mbps: number, custom: boolean) => void;
 }
 
-export function SpeedSelector({ presetId, customMbps, onPresetChange, onCustomChange }: Props) {
+export function SpeedSelector({ speedMbps, custom, onChange }: SpeedSelectorProps) {
   return (
-    <div className="rounded-xl border border-border bg-primary-soft/60 p-4">
-      <label
-        htmlFor="speed-preset"
-        className="flex items-center gap-2 text-sm font-semibold text-foreground"
-      >
-        <Gauge className="size-4 text-primary" aria-hidden="true" />
-        Your internet speed (optional)
-      </label>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <select
-          id="speed-preset"
-          value={presetId}
-          onChange={(e) => onPresetChange(e.target.value as SpeedPresetId)}
-          className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:border-primary/50"
-        >
-          {SPEED_PRESETS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-
-        {presetId === "custom" && (
-          <div className="flex items-center gap-2">
-            <label htmlFor="custom-speed" className="sr-only">
-              Custom speed in Mbps
-            </label>
-            <input
-              id="custom-speed"
-              type="number"
-              min={1}
-              max={2000}
-              value={customMbps}
-              onChange={(e) => onCustomChange(Math.max(1, Number(e.target.value) || 1))}
-              className="h-11 w-full min-w-0 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground"
-            />
-            <span className="shrink-0 text-sm font-medium text-muted-foreground">Mbps</span>
-          </div>
-        )}
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <Gauge className="h-4 w-4 text-primary" aria-hidden="true" />
+        <span className="text-sm font-semibold text-foreground">Your internet speed</span>
       </div>
+      <div role="radiogroup" aria-label="Internet speed" className="flex flex-wrap gap-2">
+        {SPEED_PRESETS.map((p) => {
+          const selected = !custom && speedMbps === p.mbps;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onChange(p.mbps, false)}
+              className={cn(
+                "min-h-10 rounded-xl border px-3 text-xs font-semibold transition-all",
+                selected
+                  ? "border-primary bg-primary text-primary-foreground shadow-soft"
+                  : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground",
+              )}
+            >
+              {p.label} — {p.mbps} Mbps
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={custom}
+          onClick={() => onChange(speedMbps, true)}
+          className={cn(
+            "min-h-10 rounded-xl border px-3 text-xs font-semibold transition-all",
+            custom
+              ? "border-primary bg-primary text-primary-foreground shadow-soft"
+              : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground",
+          )}
+        >
+          Custom
+        </button>
+      </div>
+
+      {custom && (
+        <div className="mt-3 flex items-center gap-2">
+          <label htmlFor="custom-speed" className="text-xs font-medium text-muted-foreground">
+            Custom speed (Mbps)
+          </label>
+          <input
+            id="custom-speed"
+            type="number"
+            min={1}
+            max={2000}
+            value={speedMbps}
+            onChange={(e) => onChange(Math.max(1, Number(e.target.value) || 1), true)}
+            className="h-10 w-28 rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,258 +1,238 @@
-import type { HistoryItem, QualityOption, SpeedPreset, VideoInfo } from "./types";
+import type { FileFormat, QualityOption, VideoInfo } from "./types";
 
-// ---------------------------------------------------------------------------
-// Mock data only. Replace with real API payloads when a backend is connected.
-// ---------------------------------------------------------------------------
-
-export const SPEED_PRESETS: SpeedPreset[] = [
-  { id: "slow", label: "Slow — 5 Mbps", mbps: 5 },
-  { id: "average", label: "Average — 20 Mbps", mbps: 20 },
-  { id: "fast", label: "Fast — 50 Mbps", mbps: 50 },
-  { id: "veryfast", label: "Very fast — 100 Mbps", mbps: 100 },
-  { id: "custom", label: "Custom speed", mbps: 25 },
-];
-
-export const EXAMPLE_URL = "https://www.youtube.com/watch?v=vidleaf-demo-01";
+/** Mock catalogue used by the simulated analysis service. */
 
 const THUMBS = [
+  "https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=960&q=70",
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=960&q=70",
+  "https://images.unsplash.com/photo-1526772662000-3f88f10405ff?auto=format&fit=crop&w=960&q=70",
   "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=960&q=70",
-  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=960&q=70",
-  "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=960&q=70",
-  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=960&q=70",
-  "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?auto=format&fit=crop&w=960&q=70",
-  "https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=960&q=70",
+  "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=960&q=70",
 ];
 
-function buildQualities(durationSeconds: number, seed: number): QualityOption[] {
-  const minutes = durationSeconds / 60;
-  const mk = (
-    id: string,
-    label: string,
-    resolution: string,
-    height: number,
-    mbPerMin: number,
-    format: QualityOption["format"],
-    fps?: number,
-    available = true,
-  ): QualityOption => ({
-    id,
-    label,
-    resolution,
-    height,
-    kind: "video",
-    format,
-    fps,
-    sizeMB: Math.max(1, Math.round(minutes * mbPerMin * (0.9 + (seed % 5) / 20) * 10) / 10),
-    available,
-  });
-
-  return [
-    {
-      id: "best",
-      label: "Best Quality",
-      resolution: "Auto (up to 2160p)",
-      height: 2160,
-      kind: "video",
-      format: "MP4",
-      fps: 60,
-      sizeMB: Math.round(minutes * 92 * 10) / 10,
-      available: true,
-      recommended: true,
-    },
-    mk("2160", "4K / 2160p", "3840x2160", 2160, 92, "MP4", 60, seed % 3 !== 0),
-    mk("1440", "2K / 1440p", "2560x1440", 1440, 52, "WebM", 60),
-    mk("1080", "Full HD / 1080p", "1920x1080", 1080, 26, "MP4", 60),
-    mk("720", "HD / 720p", "1280x720", 720, 14, "MP4", 30),
-    mk("480", "480p", "854x480", 480, 8, "MP4", 30),
-    mk("360", "360p", "640x360", 360, 5, "WebM", 30),
-    mk("240", "240p", "426x240", 240, 3, "MP4", 30),
-    mk("144", "144p", "256x144", 144, 1.6, "MP4", 15),
-    {
-      id: "audio-m4a",
-      label: "Audio only — High",
-      resolution: "Audio · 192 kbps",
-      height: 0,
-      kind: "audio",
-      format: "M4A",
-      sizeMB: Math.round(minutes * 1.45 * 10) / 10,
-      available: true,
-      bitrateKbps: 192,
-    },
-    {
-      id: "audio-mp3",
-      label: "Audio only — Standard",
-      resolution: "Audio · 128 kbps",
-      height: 0,
-      kind: "audio",
-      format: "MP3",
-      sizeMB: Math.round(minutes * 0.96 * 10) / 10,
-      available: true,
-      bitrateKbps: 128,
-    },
-  ];
+interface QualitySpec {
+  id: string;
+  label: string;
+  resolution: string;
+  height: number;
+  fps?: number;
+  format: FileFormat;
+  /** approximate megabytes per minute of video */
+  mbPerMinute: number;
+  kind: "video" | "audio";
 }
 
-const MOCK_VIDEOS: Omit<VideoInfo, "url" | "qualities">[] = [
+const QUALITY_SPECS: QualitySpec[] = [
   {
-    id: "vl-1",
-    title: "Sunrise Over the Northern Fjords — 4K Nature Film",
-    channel: "Wildframe Studio",
-    thumbnail: THUMBS[0]!,
-    durationSeconds: 12 * 60 + 42,
-    uploadedAt: "2026-05-14T09:12:00.000Z",
-    views: 2_418_903,
+    id: "2160p",
+    label: "4K / 2160p",
+    resolution: "3840x2160",
+    height: 2160,
+    fps: 60,
+    format: "MP4",
+    mbPerMinute: 165,
+    kind: "video",
   },
   {
-    id: "vl-2",
-    title: "Building a Design System from Scratch (Full Workshop)",
-    channel: "Interface Lab",
-    thumbnail: THUMBS[1]!,
-    durationSeconds: 48 * 60 + 5,
-    uploadedAt: "2026-03-02T16:40:00.000Z",
-    views: 512_774,
+    id: "1440p",
+    label: "2K / 1440p",
+    resolution: "2560x1440",
+    height: 1440,
+    fps: 60,
+    format: "WebM",
+    mbPerMinute: 92,
+    kind: "video",
   },
   {
-    id: "vl-3",
-    title: "Deep Focus — Ambient Study Session",
-    channel: "Quiet Hours",
-    thumbnail: THUMBS[2]!,
-    durationSeconds: 62 * 60,
-    uploadedAt: "2026-01-21T07:00:00.000Z",
-    views: 8_042_115,
+    id: "1080p",
+    label: "Full HD / 1080p",
+    resolution: "1920x1080",
+    height: 1080,
+    fps: 60,
+    format: "MP4",
+    mbPerMinute: 48,
+    kind: "video",
   },
   {
-    id: "vl-4",
-    title: "Street Food Tour: 12 Stops in One Evening",
-    channel: "Latitude Eats",
-    thumbnail: THUMBS[3]!,
-    durationSeconds: 21 * 60 + 18,
-    uploadedAt: "2026-06-08T18:25:00.000Z",
-    views: 1_106_002,
+    id: "720p",
+    label: "HD / 720p",
+    resolution: "1280x720",
+    height: 720,
+    fps: 30,
+    format: "MP4",
+    mbPerMinute: 26,
+    kind: "video",
+  },
+  {
+    id: "480p",
+    label: "480p",
+    resolution: "854x480",
+    height: 480,
+    fps: 30,
+    format: "MP4",
+    mbPerMinute: 14,
+    kind: "video",
+  },
+  {
+    id: "360p",
+    label: "360p",
+    resolution: "640x360",
+    height: 360,
+    fps: 30,
+    format: "WebM",
+    mbPerMinute: 8,
+    kind: "video",
+  },
+  {
+    id: "240p",
+    label: "240p",
+    resolution: "426x240",
+    height: 240,
+    fps: 30,
+    format: "MP4",
+    mbPerMinute: 5,
+    kind: "video",
+  },
+  {
+    id: "144p",
+    label: "144p",
+    resolution: "256x144",
+    height: 144,
+    fps: 24,
+    format: "MP4",
+    mbPerMinute: 2.4,
+    kind: "video",
+  },
+  {
+    id: "audio-m4a",
+    label: "Audio only — High",
+    resolution: "—",
+    height: 0,
+    format: "M4A",
+    mbPerMinute: 1.4,
+    kind: "audio",
+  },
+  {
+    id: "audio-mp3",
+    label: "Audio only — Standard",
+    resolution: "—",
+    height: 0,
+    format: "MP3",
+    mbPerMinute: 0.95,
+    kind: "audio",
   },
 ];
 
-export function pickMockVideo(url: string): VideoInfo {
-  let seed = 0;
-  for (let i = 0; i < url.length; i++) seed = (seed * 31 + url.charCodeAt(i)) % 100000;
-  const base = MOCK_VIDEOS[seed % MOCK_VIDEOS.length]!;
+function buildQualities(durationSeconds: number, maxHeight: number): QualityOption[] {
+  const minutes = durationSeconds / 60;
+  const options: QualityOption[] = QUALITY_SPECS.map((spec) => {
+    const base: QualityOption = {
+      id: spec.id,
+      label: spec.label,
+      resolution: spec.resolution,
+      height: spec.height,
+      format: spec.format,
+      kind: spec.kind,
+      sizeBytes: Math.round(spec.mbPerMinute * minutes * 1024 * 1024),
+      available: spec.kind === "audio" || spec.height <= maxHeight,
+    };
+    return spec.fps === undefined ? base : { ...base, fps: spec.fps };
+  });
+
+  const best = options.find((o) => o.available && o.kind === "video");
+  if (best) best.recommended = true;
+  return options;
+}
+
+interface MockSource {
+  title: string;
+  channel: string;
+  durationSeconds: number;
+  views: number;
+  uploadedAt: string;
+  maxHeight: number;
+}
+
+const SOURCES: MockSource[] = [
+  {
+    title: "Building a Calm Morning Routine in the Mountains",
+    channel: "Northwild Studio",
+    durationSeconds: 764,
+    views: 1_284_930,
+    uploadedAt: "2026-05-14T09:20:00.000Z",
+    maxHeight: 2160,
+  },
+  {
+    title: "How Modern Web Interfaces Are Designed — Full Walkthrough",
+    channel: "Interface Lab",
+    durationSeconds: 2145,
+    views: 402_118,
+    uploadedAt: "2026-03-02T16:45:00.000Z",
+    maxHeight: 1440,
+  },
+  {
+    title: "Lo-fi Study Session — 1 Hour of Focus Music",
+    channel: "Green Room Audio",
+    durationSeconds: 3612,
+    views: 9_845_002,
+    uploadedAt: "2025-11-21T07:00:00.000Z",
+    maxHeight: 1080,
+  },
+  {
+    title: "Coastal Drone Cinematics — Shot on a Foggy Sunrise",
+    channel: "Skyline Frames",
+    durationSeconds: 421,
+    views: 88_412,
+    uploadedAt: "2026-06-30T12:10:00.000Z",
+    maxHeight: 2160,
+  },
+  {
+    title: "Everything You Need to Know About Video Codecs",
+    channel: "Bitrate Weekly",
+    durationSeconds: 1188,
+    views: 231_770,
+    uploadedAt: "2026-01-18T18:30:00.000Z",
+    maxHeight: 720,
+  },
+];
+
+export const EXAMPLE_URL = "https://www.example-video.com/watch?v=vidleaf-demo-01";
+
+/** Deterministically picks a mock video for a given URL. */
+export function mockVideoForUrl(url: string): VideoInfo {
+  const seed = Array.from(url).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const source = SOURCES[seed % SOURCES.length]!;
+  const thumbnail = THUMBS[seed % THUMBS.length]!;
+
   return {
-    ...base,
+    id: `vid_${seed}`,
     url,
-    qualities: buildQualities(base.durationSeconds, seed),
+    title: source.title,
+    channel: source.channel,
+    thumbnail,
+    durationSeconds: source.durationSeconds,
+    uploadedAt: source.uploadedAt,
+    views: source.views,
+    qualities: buildQualities(source.durationSeconds, source.maxHeight),
   };
 }
 
-export const SEED_HISTORY: HistoryItem[] = [
-  {
-    id: "h-1",
-    title: "Sunrise Over the Northern Fjords — 4K Nature Film",
-    channel: "Wildframe Studio",
-    thumbnail: THUMBS[0]!,
-    url: "https://www.youtube.com/watch?v=vidleaf-demo-01",
-    qualityLabel: "4K / 2160p",
-    resolution: "3840x2160",
-    height: 2160,
-    format: "MP4",
-    kind: "video",
-    sizeMB: 1168.4,
-    durationSeconds: 762,
-    completedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-    downloadSeconds: 214,
-  },
-  {
-    id: "h-2",
-    title: "Deep Focus — Ambient Study Session",
-    channel: "Quiet Hours",
-    thumbnail: THUMBS[2]!,
-    url: "https://www.youtube.com/watch?v=vidleaf-demo-03",
-    qualityLabel: "Audio only — High",
-    resolution: "Audio · 192 kbps",
-    height: 0,
-    format: "M4A",
-    kind: "audio",
-    sizeMB: 89.9,
-    durationSeconds: 3720,
-    completedAt: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
-    downloadSeconds: 36,
-  },
-  {
-    id: "h-3",
-    title: "Building a Design System from Scratch (Full Workshop)",
-    channel: "Interface Lab",
-    thumbnail: THUMBS[1]!,
-    url: "https://www.youtube.com/watch?v=vidleaf-demo-02",
-    qualityLabel: "Full HD / 1080p",
-    resolution: "1920x1080",
-    height: 1080,
-    format: "MP4",
-    kind: "video",
-    sizeMB: 1248.9,
-    completedAt: new Date(Date.now() - 1000 * 60 * 60 * 74).toISOString(),
-    durationSeconds: 2885,
-    downloadSeconds: 402,
-  },
-  {
-    id: "h-4",
-    title: "Street Food Tour: 12 Stops in One Evening",
-    channel: "Latitude Eats",
-    thumbnail: THUMBS[3]!,
-    url: "https://www.youtube.com/watch?v=vidleaf-demo-04",
-    qualityLabel: "HD / 720p",
-    resolution: "1280x720",
-    height: 720,
-    format: "MP4",
-    kind: "video",
-    sizeMB: 298.2,
-    durationSeconds: 1278,
-    completedAt: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString(),
-    downloadSeconds: 96,
-  },
-  {
-    id: "h-5",
-    title: "Golden Hour Timelapse Collection",
-    channel: "Wildframe Studio",
-    thumbnail: THUMBS[4]!,
-    url: "https://www.youtube.com/watch?v=vidleaf-demo-05",
-    qualityLabel: "2K / 1440p",
-    resolution: "2560x1440",
-    height: 1440,
-    format: "WebM",
-    kind: "video",
-    sizeMB: 620.5,
-    durationSeconds: 704,
-    completedAt: new Date(Date.now() - 1000 * 60 * 60 * 200).toISOString(),
-    downloadSeconds: 141,
-  },
-  {
-    id: "h-6",
-    title: "Late Night Lo-Fi Set",
-    channel: "Quiet Hours",
-    thumbnail: THUMBS[5]!,
-    url: "https://www.youtube.com/watch?v=vidleaf-demo-06",
-    qualityLabel: "Audio only — Standard",
-    resolution: "Audio · 128 kbps",
-    height: 0,
-    format: "MP3",
-    kind: "audio",
-    sizeMB: 54.1,
-    durationSeconds: 2700,
-    completedAt: new Date(Date.now() - 1000 * 60 * 60 * 320).toISOString(),
-    downloadSeconds: 22,
-  },
-  {
-    id: "h-7",
-    title: "Coastal Drone Reel — Behind the Scenes",
-    channel: "Wildframe Studio",
-    thumbnail: THUMBS[3]!,
-    url: "https://www.youtube.com/watch?v=vidleaf-demo-07",
-    qualityLabel: "480p",
-    resolution: "854x480",
-    height: 480,
-    format: "MP4",
-    kind: "video",
-    sizeMB: 88.7,
-    durationSeconds: 640,
-    completedAt: new Date(Date.now() - 1000 * 60 * 60 * 480).toISOString(),
-    downloadSeconds: 31,
-  },
-];
+/** Seeded history so first-time visitors see a populated "My Downloads". */
+export function seedHistory() {
+  const now = Date.now();
+  return SOURCES.slice(0, 4).map((s, i) => ({
+    id: `hist_seed_${i}`,
+    title: s.title,
+    channel: s.channel,
+    thumbnail: THUMBS[i % THUMBS.length]!,
+    url: `${EXAMPLE_URL}&i=${i}`,
+    qualityLabel: ["Full HD / 1080p", "HD / 720p", "Audio only — High", "4K / 2160p"][i]!,
+    resolution: ["1920x1080", "1280x720", "—", "3840x2160"][i]!,
+    format: (["MP4", "MP4", "M4A", "MP4"] as FileFormat[])[i]!,
+    kind: (i === 2 ? "audio" : "video") as "video" | "audio",
+    sizeBytes: [612, 214, 51, 2380][i]! * 1024 * 1024,
+    durationSeconds: s.durationSeconds,
+    completedAt: now - (i + 1) * 1000 * 60 * 60 * 9,
+    downloadSeconds: [42, 18, 6, 190][i]!,
+  }));
+}

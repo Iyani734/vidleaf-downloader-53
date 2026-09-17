@@ -1,51 +1,60 @@
 import { useMemo, useState } from "react";
-import { FolderOpen, Search, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { History, Search, Trash2 } from "lucide-react";
+import type { HistoryItem } from "@/lib/vidleaf/types";
 import { HistoryCard } from "./HistoryCard";
 import { ConfirmationModal } from "./ConfirmationModal";
-import { useDownloads } from "@/lib/vidleaf/store";
-import type { HistoryItem } from "@/lib/vidleaf/types";
-
-const PAGE_SIZE = 4;
 
 type KindFilter = "all" | "video" | "audio";
 type SortKey = "newest" | "oldest" | "largest" | "smallest";
 
-export function DownloadHistory({ onDownloadAgain }: { onDownloadAgain: (item: HistoryItem) => void }) {
-  const { history, hydrated, removeHistoryItem, clearHistory } = useDownloads();
+const PAGE_SIZE = 4;
+
+interface Props {
+  history: HistoryItem[];
+  onDownloadAgain: (item: HistoryItem) => void;
+  onCopyLink: (item: HistoryItem) => void;
+  onRemove: (id: string) => void;
+  onClear: () => void;
+}
+
+export function DownloadHistory({
+  history,
+  onDownloadAgain,
+  onCopyLink,
+  onRemove,
+  onClear,
+}: Props) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<KindFilter>("all");
   const [resolution, setResolution] = useState("all");
   const [sort, setSort] = useState<SortKey>("newest");
   const [visible, setVisible] = useState(PAGE_SIZE);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const resolutions = useMemo(() => {
-    const set = new Set(history.map((h) => h.qualityLabel));
-    return Array.from(set).sort();
-  }, [history]);
+  const resolutions = useMemo(
+    () => Array.from(new Set(history.map((h) => h.resolution))).sort(),
+    [history],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = history.filter((h) => {
-      if (q && !h.title.toLowerCase().includes(q) && !h.channel.toLowerCase().includes(q))
-        return false;
+      if (q && !h.title.toLowerCase().includes(q)) return false;
       if (kind !== "all" && h.kind !== kind) return false;
-      if (resolution !== "all" && h.qualityLabel !== resolution) return false;
+      if (resolution !== "all" && h.resolution !== resolution) return false;
       return true;
     });
     const sorted = [...list];
     sorted.sort((a, b) => {
       switch (sort) {
         case "oldest":
-          return +new Date(a.completedAt) - +new Date(b.completedAt);
+          return a.completedAt - b.completedAt;
         case "largest":
-          return b.sizeMB - a.sizeMB;
+          return b.sizeBytes - a.sizeBytes;
         case "smallest":
-          return a.sizeMB - b.sizeMB;
+          return a.sizeBytes - b.sizeBytes;
         default:
-          return +new Date(b.completedAt) - +new Date(a.completedAt);
+          return b.completedAt - a.completedAt;
       }
     });
     return sorted;
@@ -53,33 +62,39 @@ export function DownloadHistory({ onDownloadAgain }: { onDownloadAgain: (item: H
 
   const shown = filtered.slice(0, visible);
 
-  const copyLink = async (item: HistoryItem) => {
-    try {
-      await navigator.clipboard.writeText(item.url);
-      toast.success("Link copied to clipboard");
-    } catch {
-      toast.error("Couldn't copy the link");
-    }
-  };
-
-  if (!hydrated) {
+  if (history.length === 0) {
     return (
-      <div className="surface-card p-8 text-center text-sm text-muted-foreground">
-        Loading your history…
+      <div className="surface-panel flex flex-col items-center gap-3 p-12 text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-secondary text-primary">
+          <History className="h-7 w-7" aria-hidden="true" />
+        </span>
+        <h3 className="text-base font-bold">No downloads yet</h3>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Finished downloads appear here, saved on this device so they survive a page refresh.
+        </p>
+        <a
+          href="#downloader"
+          className="mt-2 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark"
+        >
+          Download your first video
+        </a>
       </div>
     );
   }
 
+  const selectClass =
+    "min-h-11 rounded-xl border border-border bg-card px-3 text-sm text-foreground transition-colors focus:border-primary focus:outline-none";
+
   return (
     <div className="space-y-4">
-      <div className="surface-card grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-        <div className="relative min-w-0">
+      <div className="surface-panel grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="relative sm:col-span-2">
           <label htmlFor="history-search" className="sr-only">
             Search downloads by title
           </label>
           <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <input
             id="history-search"
@@ -89,8 +104,8 @@ export function DownloadHistory({ onDownloadAgain }: { onDownloadAgain: (item: H
               setQuery(e.target.value);
               setVisible(PAGE_SIZE);
             }}
-            placeholder="Search by title or creator…"
-            className="h-11 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
+            placeholder="Search by title…"
+            className="min-h-11 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
           />
         </div>
 
@@ -102,7 +117,7 @@ export function DownloadHistory({ onDownloadAgain }: { onDownloadAgain: (item: H
             id="filter-kind"
             value={kind}
             onChange={(e) => setKind(e.target.value as KindFilter)}
-            className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground md:w-36"
+            className={`${selectClass} w-full`}
           >
             <option value="all">All media</option>
             <option value="video">Video only</option>
@@ -118,26 +133,26 @@ export function DownloadHistory({ onDownloadAgain }: { onDownloadAgain: (item: H
             id="filter-res"
             value={resolution}
             onChange={(e) => setResolution(e.target.value)}
-            className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground md:w-44"
+            className={`${selectClass} w-full`}
           >
             <option value="all">All resolutions</option>
             {resolutions.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {r === "Audio" || r === "—" ? "Audio" : r}
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label htmlFor="sort-key" className="sr-only">
+          <label htmlFor="sort-by" className="sr-only">
             Sort downloads
           </label>
           <select
-            id="sort-key"
+            id="sort-by"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground md:w-36"
+            className={`${selectClass} w-full`}
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -149,78 +164,58 @@ export function DownloadHistory({ onDownloadAgain }: { onDownloadAgain: (item: H
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground" aria-live="polite">
-          {filtered.length} {filtered.length === 1 ? "download" : "downloads"}
+          Showing {shown.length} of {filtered.length} download{filtered.length === 1 ? "" : "s"}
         </p>
-        {history.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-10 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => setConfirmClear(true)}
-          >
-            <Trash2 className="size-4" aria-hidden="true" /> Clear history
-          </Button>
-        )}
+        <button
+          type="button"
+          onClick={() => setConfirmOpen(true)}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-destructive/30 px-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" /> Clear history
+        </button>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="surface-card flex flex-col items-center px-6 py-14 text-center">
-          <span className="grid size-16 place-items-center rounded-2xl bg-primary-soft text-primary">
-            <FolderOpen className="size-8" aria-hidden="true" />
-          </span>
-          <h3 className="mt-4 font-display text-lg font-bold text-foreground">
-            {history.length === 0 ? "No downloads yet" : "Nothing matches those filters"}
-          </h3>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            {history.length === 0
-              ? "Your finished downloads will appear here, saved on this device."
-              : "Try a different search term, media type, or resolution."}
+        <div className="surface-panel p-10 text-center">
+          <h3 className="text-base font-bold">No matches</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Try a different search term or reset the filters.
           </p>
-          <Button asChild className="mt-5 h-11 rounded-xl">
-            <a href="#downloader">Start a download</a>
-          </Button>
         </div>
       ) : (
-        <>
-          <ul className="space-y-3">
-            {shown.map((item) => (
-              <HistoryCard
-                key={item.id}
-                item={item}
-                onDownloadAgain={onDownloadAgain}
-                onCopyLink={copyLink}
-                onRemove={(i) => {
-                  removeHistoryItem(i.id);
-                  toast.success("Removed from history");
-                }}
-              />
-            ))}
-          </ul>
-          {visible < filtered.length && (
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                className="h-12 w-full rounded-xl sm:w-auto"
-                onClick={() => setVisible((v) => v + PAGE_SIZE)}
-              >
-                Load more ({filtered.length - visible} remaining)
-              </Button>
-            </div>
-          )}
-        </>
+        <div className="space-y-3">
+          {shown.map((item) => (
+            <HistoryCard
+              key={item.id}
+              item={item}
+              onDownloadAgain={onDownloadAgain}
+              onCopyLink={onCopyLink}
+              onRemove={onRemove}
+            />
+          ))}
+        </div>
+      )}
+
+      {visible < filtered.length && (
+        <button
+          type="button"
+          onClick={() => setVisible((v) => v + PAGE_SIZE)}
+          className="min-h-12 w-full rounded-xl border border-border bg-card text-sm font-semibold text-primary-dark transition-colors hover:bg-secondary"
+        >
+          Load more
+        </button>
       )}
 
       <ConfirmationModal
-        open={confirmClear}
-        onOpenChange={setConfirmClear}
+        open={confirmOpen}
         title="Clear download history?"
-        description="This permanently removes every item saved on this device. Files already saved to your computer are not affected."
+        description="This removes every saved item from this device. Active downloads aren't affected."
         confirmLabel="Clear history"
         onConfirm={() => {
-          clearHistory();
-          setConfirmClear(false);
-          toast.success("Download history cleared");
+          onClear();
+          setConfirmOpen(false);
         }}
+        onCancel={() => setConfirmOpen(false)}
       />
     </div>
   );

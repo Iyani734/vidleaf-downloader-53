@@ -1,23 +1,20 @@
-// Shared domain types for VidLeaf.
-// These mirror the shape a real backend API would return, so swapping the
-// mock service (see ./service.ts) for real endpoints requires no UI changes.
+// Shared domain types for VidLeaf's frontend.
+// These mirror the shapes a real analysis/download API would return.
 
 export type MediaKind = "video" | "audio";
-
 export type FileFormat = "MP4" | "WebM" | "MP3" | "M4A";
 
 export interface QualityOption {
   id: string;
   label: string; // "Full HD / 1080p"
-  resolution: string; // "1920x1080" | "Audio"
-  height: number; // 2160, 1080 ... 0 for audio
-  kind: MediaKind;
+  resolution: string; // "1920x1080" or "—"
+  height: number; // 1080, 0 for audio
   format: FileFormat;
+  sizeBytes: number;
   fps?: number | undefined;
-  sizeMB: number;
+  kind: MediaKind;
   available: boolean;
   recommended?: boolean | undefined;
-  bitrateKbps?: number | undefined;
 }
 
 export interface VideoInfo {
@@ -25,10 +22,9 @@ export interface VideoInfo {
   url: string;
   title: string;
   channel: string;
-  channelAvatar?: string | undefined;
   thumbnail: string;
   durationSeconds: number;
-  uploadedAt: string; // ISO date
+  uploadedAt: string; // ISO
   views?: number | undefined;
   qualities: QualityOption[];
 }
@@ -45,6 +41,7 @@ export type DownloadStatus =
 export interface ActiveDownload {
   id: string;
   videoId: string;
+  sourceUrl: string;
   title: string;
   channel: string;
   thumbnail: string;
@@ -53,12 +50,15 @@ export interface ActiveDownload {
   resolution: string;
   format: FileFormat;
   kind: MediaKind;
-  totalMB: number;
-  downloadedMB: number;
-  speedMbps: number;
+  totalBytes: number;
+  receivedBytes: number;
+  speedBps: number;
   status: DownloadStatus;
   startedAt: number;
+  downloadUrl?: string | undefined;
+  downloadTokenExpiresAt?: string | undefined;
   error?: string | undefined;
+  canPause?: boolean | undefined;
 }
 
 export interface HistoryItem {
@@ -69,19 +69,11 @@ export interface HistoryItem {
   url: string;
   qualityLabel: string;
   resolution: string;
-  height: number;
   format: FileFormat;
   kind: MediaKind;
-  sizeMB: number;
+  sizeBytes: number;
   durationSeconds: number;
-  completedAt: string; // ISO
+  completedAt: number; // epoch ms
   downloadSeconds: number;
-}
-
-export type SpeedPresetId = "slow" | "average" | "fast" | "veryfast" | "custom";
-
-export interface SpeedPreset {
-  id: SpeedPresetId;
-  label: string;
-  mbps: number;
+  downloadUrl?: string | undefined;
 }
