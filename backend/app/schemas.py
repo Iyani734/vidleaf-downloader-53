@@ -95,6 +95,11 @@ class DownloadJobResponse(ApiModel):
     status: JobStatus
     quality: str
     container: str
+    job_type: str = "download"
+    enhancements: list[str] = Field(default_factory=list)
+    source_filename: str | None = None
+    final_filename: str | None = None
+    final_size_bytes: int | None = None
     estimated_size_bytes: int | None = None
     created_at: datetime
     updated_at: datetime
