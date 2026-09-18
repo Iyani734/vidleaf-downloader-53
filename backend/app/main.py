@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import AsyncIterator
 
 import anyio
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -20,9 +20,11 @@ from app.core.logging import configure_json_logging
 from app.core.security import DownloadTokenService, new_owner_id, normalize_youtube_url
 from app.models import JobRecord
 from app.runtime import Runtime, build_runtime
+from app.audio_enhancements import OUTPUT_FORMATS, catalog, validate_selection
 from app.schemas import (
     AnalysisRequest,
     AnalysisResponse,
+    AudioEnhancementsResponse,
     CreateDownloadResponse,
     DownloadJobResponse,
     DownloadRequest,
@@ -163,7 +165,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request_id = request.headers.get("X-Request-ID") or f"req_{secrets.token_urlsafe(12)}"
         request.state.request_id = request_id[:128]
         length = request.headers.get("content-length")
-        if length and int(length) > settings.max_request_bytes:
+        is_upload = request.url.path == f"{settings.api_prefix}/audio/jobs"
+        limit = settings.max_upload_bytes if is_upload else settings.max_request_bytes
+        if length and int(length) > limit:
             return _error_response(
                 ApiError("REQUEST_TOO_LARGE", "Request body exceeds the allowed size.", status_code=413), request
             )
@@ -327,6 +331,94 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             estimated_size_bytes=estimated_size,
             created_at=job.created_at,
         )
+
+    @app.get(f"{settings.api_prefix}/audio/enhancements", response_model=AudioEnhancementsResponse, tags=["audio"])
+    async def audio_enhancements() -> AudioEnhancementsResponse:
+        return AudioEnhancementsResponse.model_validate(
+            {
+                "enhancements": catalog(),
+                "outputFormats": list(OUTPUT_FORMATS),
+                "maxUploadBytes": settings.max_upload_bytes,
+            }
+        )
+
+    @app.post(
+        f"{settings.api_prefix}/audio/jobs",
+        response_model=DownloadJobResponse,
+        status_code=202,
+        responses={413: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+        tags=["audio"],
+    )
+    async def create_audio_job(
+        request: Request,
+        file: UploadFile = File(...),
+        enhancements: str = Form(...),
+        output_format: str = Form("mp3", alias="outputFormat"),
+        bitrate_kbps: int = Form(192, alias="bitrateKbps"),
+        runtime: Runtime = Depends(runtime_for),
+        owner_id: str = Depends(owner_for),
+    ) -> DownloadJobResponse:
+        selected = validate_selection([item.strip() for item in enhancements.split(",") if item.strip()])
+        if output_format not in OUTPUT_FORMATS:
+            raise ApiError("UNSUPPORTED_OUTPUT_FORMAT", "Choose MP3, M4A or WAV for the cleaned file.", status_code=422)
+        if bitrate_kbps not in {128, 192, 320}:
+            raise ApiError("UNSUPPORTED_BITRATE", "Choose 128, 192 or 320 kbps.", status_code=422)
+
+        original = (file.filename or "audio").rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+        suffix = original.rsplit(".", 1)[-1].lower() if "." in original else ""
+        if suffix not in {"mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "webm", "mp4", "mov", "mkv", "wma", "aiff"}:
+            raise ApiError("UNSUPPORTED_AUDIO_FILE", "Upload an audio or video file VidLeaf can read.", status_code=422)
+
+        job_id = f"aud_{secrets.token_urlsafe(15)}"
+        work_dir = runtime.storage.working_directory(job_id)
+        target = work_dir / f"source.{suffix}"
+        written = 0
+        try:
+            with target.open("wb") as handle:
+                while chunk := await file.read(1024 * 1024):
+                    written += len(chunk)
+                    if written > settings.max_upload_bytes:
+                        raise ApiError(
+                            "REQUEST_TOO_LARGE",
+                            "That audio file is larger than the allowed upload size.",
+                            status_code=413,
+                            details={"maximumBytes": settings.max_upload_bytes},
+                        )
+                    handle.write(chunk)
+        except ApiError:
+            runtime.storage.delete_job(job_id)
+            raise
+        finally:
+            await file.close()
+        if written == 0:
+            runtime.storage.delete_job(job_id)
+            raise ApiError("EMPTY_UPLOAD", "The uploaded file is empty.", status_code=422)
+
+        job = JobRecord.new(
+            job_id=job_id,
+            owner_id=owner_id,
+            source_url=f"upload://{original}",
+            quality="audio",
+            container=output_format,
+            audio_format=output_format,
+            audio_bitrate_kbps=bitrate_kbps,
+            expiry_seconds=settings.job_expiry_seconds,
+            job_type="audio_clean",
+            enhancements=selected,
+            source_filename=original,
+            source_path=str(target),
+            output_format=output_format,
+        )
+        job.total_bytes = written
+        job.title = original
+        runtime.repository.create(job)
+        try:
+            job.task_id = runtime.queue.enqueue_audio(job.job_id)
+            runtime.repository.publish(job, "queued")
+        except Exception as exc:
+            runtime.storage.delete_job(job_id)
+            raise ApiError("WORKER_UNAVAILABLE", "The cleanup queue is unavailable. Please retry shortly.", status_code=503) from exc
+        return _public_job(job, request, request.app.state.tokens, settings)
 
     @app.get(f"{settings.api_prefix}/downloads", response_model=JobListResponse, tags=["downloads"])
     async def list_downloads(

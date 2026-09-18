@@ -95,6 +95,11 @@ class DownloadJobResponse(ApiModel):
     status: JobStatus
     quality: str
     container: str
+    job_type: str = "download"
+    enhancements: list[str] = Field(default_factory=list)
+    source_filename: str | None = None
+    final_filename: str | None = None
+    final_size_bytes: int | None = None
     estimated_size_bytes: int | None = None
     created_at: datetime
     updated_at: datetime
@@ -128,3 +133,17 @@ class JobListResponse(ApiModel):
 
 class HealthResponse(ApiModel):
     status: Literal["live", "ready"]
+
+
+class AudioEnhancementOption(ApiModel):
+    id: str
+    label: str
+    description: str
+    group: str
+    modifier: bool = False
+
+
+class AudioEnhancementsResponse(ApiModel):
+    enhancements: list[AudioEnhancementOption]
+    output_formats: list[str]
+    max_upload_bytes: int

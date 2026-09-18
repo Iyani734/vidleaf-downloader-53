@@ -22,6 +22,9 @@ class FakeQueue:
     def enqueue(self, job_id: str) -> str:
         return f"rq_{job_id}"
 
+    def enqueue_audio(self, job_id: str) -> str:
+        return f"rq_audio_{job_id}"
+
     def cancel_queued(self, task_id: str | None) -> None:
         if task_id:
             self.cancelled.append(task_id)

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     secure_cookies: bool = False
     session_cookie_name: str = "vidleaf_session"
     max_request_bytes: int = 16_384
+    max_upload_bytes: int = 512 * 1024 * 1024
     rate_limit_per_minute: int = 30
     analysis_cache_seconds: int = 600
     job_expiry_seconds: int = 3_600
