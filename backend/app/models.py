@@ -18,6 +18,11 @@ class JobRecord(ApiModel):
     source_url: str
     quality: str
     container: str
+    job_type: str = "download"
+    enhancements: list[str] = Field(default_factory=list)
+    source_filename: str | None = None
+    source_path: str | None = None
+    output_format: str | None = None
     audio_format: str | None = None
     audio_bitrate_kbps: int | None = None
     allow_quality_fallback: bool = False
@@ -54,10 +59,15 @@ class JobRecord(ApiModel):
         source_url: str,
         quality: str,
         container: str,
-        audio_format: str | None,
-        audio_bitrate_kbps: int | None,
-        allow_quality_fallback: bool,
+        audio_format: str | None = None,
+        audio_bitrate_kbps: int | None = None,
+        allow_quality_fallback: bool = False,
         expiry_seconds: int,
+        job_type: str = "download",
+        enhancements: list[str] | None = None,
+        source_filename: str | None = None,
+        source_path: str | None = None,
+        output_format: str | None = None,
     ) -> "JobRecord":
         now = utc_now()
         return cls(
@@ -69,9 +79,15 @@ class JobRecord(ApiModel):
             audio_format=audio_format,
             audio_bitrate_kbps=audio_bitrate_kbps,
             allow_quality_fallback=allow_quality_fallback,
+            job_type=job_type,
+            enhancements=enhancements or [],
+            source_filename=source_filename,
+            source_path=source_path,
+            output_format=output_format,
             created_at=now,
             updated_at=now,
             expires_at=now + timedelta(seconds=expiry_seconds),
+            message="Queued for audio cleanup" if job_type == "audio_clean" else "Queued for download",
         )
 
     def response(self) -> DownloadJobResponse:
