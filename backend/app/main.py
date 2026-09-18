@@ -165,7 +165,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request_id = request.headers.get("X-Request-ID") or f"req_{secrets.token_urlsafe(12)}"
         request.state.request_id = request_id[:128]
         length = request.headers.get("content-length")
-        if length and int(length) > settings.max_request_bytes:
+        is_upload = request.url.path == f"{settings.api_prefix}/audio/jobs"
+        limit = settings.max_upload_bytes if is_upload else settings.max_request_bytes
+        if length and int(length) > limit:
             return _error_response(
                 ApiError("REQUEST_TOO_LARGE", "Request body exceeds the allowed size.", status_code=413), request
             )
