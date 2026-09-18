@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import AsyncIterator
 
 import anyio
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -20,9 +20,11 @@ from app.core.logging import configure_json_logging
 from app.core.security import DownloadTokenService, new_owner_id, normalize_youtube_url
 from app.models import JobRecord
 from app.runtime import Runtime, build_runtime
+from app.audio_enhancements import OUTPUT_FORMATS, catalog, validate_selection
 from app.schemas import (
     AnalysisRequest,
     AnalysisResponse,
+    AudioEnhancementsResponse,
     CreateDownloadResponse,
     DownloadJobResponse,
     DownloadRequest,
