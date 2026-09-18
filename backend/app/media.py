@@ -19,7 +19,31 @@ def mime_type_for(extension: str) -> str:
         "webm": "video/webm",
         "m4a": "audio/mp4",
         "mp3": "audio/mpeg",
+        "wav": "audio/wav",
     }[extension]
+
+
+def probe_duration_seconds(path: Path, *, timeout_seconds: int = 30) -> int | None:
+    """Best-effort media duration used to drive real FFmpeg progress."""
+
+    ffprobe = _ffprobe_executable()
+    if not ffprobe:
+        return None
+    try:
+        result = subprocess.run(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+        if result.returncode != 0:
+            return None
+        duration = json.loads(result.stdout).get("format", {}).get("duration")
+        return int(float(duration)) if duration else None
+    except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
+        return None
 
 
 def _ffmpeg_executable() -> str:

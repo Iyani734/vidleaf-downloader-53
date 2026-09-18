@@ -57,7 +57,7 @@ def sanitize_filename(title: str, extension: str, *, max_stem_length: int = 120)
     """Produce a portable, presentation-safe download name without path traversal."""
 
     safe_extension = extension.lower().lstrip(".")
-    if safe_extension not in {"mp4", "webm", "m4a", "mp3"}:
+    if safe_extension not in {"mp4", "webm", "m4a", "mp3", "wav"}:
         raise ValueError("Unsupported file extension")
     normalized = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
     normalized = re.sub(r'[<>:"/\\|?*\x00-\x1f]', " ", normalized)
