@@ -133,3 +133,17 @@ class JobListResponse(ApiModel):
 
 class HealthResponse(ApiModel):
     status: Literal["live", "ready"]
+
+
+class AudioEnhancementOption(ApiModel):
+    id: str
+    label: str
+    description: str
+    group: str
+    modifier: bool = False
+
+
+class AudioEnhancementsResponse(ApiModel):
+    enhancements: list[AudioEnhancementOption]
+    output_formats: list[str]
+    max_upload_bytes: int
