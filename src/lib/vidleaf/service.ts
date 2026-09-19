@@ -42,6 +42,11 @@ export type BackendDownloadJob = {
   status: BackendJobStatus;
   quality: string;
   container: string;
+  jobType?: "download" | "audio_clean";
+  enhancements?: string[];
+  sourceFilename?: string | null;
+  finalFilename?: string | null;
+  finalSizeBytes?: number | null;
   estimatedSizeBytes?: number | null;
   createdAt: string;
   updatedAt?: string;
