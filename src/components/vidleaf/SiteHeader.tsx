@@ -20,7 +20,7 @@ interface Props {
 export function SiteHeader({ sectionLinks = [], ctaHref = "#top", ctaLabel = "Get started" }: Props) {
   const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
-  const servicesRef = useRef<HTMLDivElement | null>(null);
+  const servicesRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";

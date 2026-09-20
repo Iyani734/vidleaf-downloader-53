@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CleanAudioRouteImport } from './routes/clean-audio'
 import { Route as DownloadRouteImport } from './routes/download'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CleanAudioRoute = CleanAudioRouteImport.update({
+  id: '/clean-audio',
+  path: '/clean-audio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DownloadRoute = DownloadRouteImport.update({
@@ -25,27 +31,31 @@ const DownloadRoute = DownloadRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clean-audio': typeof CleanAudioRoute
   '/download': typeof DownloadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clean-audio': typeof CleanAudioRoute
   '/download': typeof DownloadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clean-audio': typeof CleanAudioRoute
   '/download': typeof DownloadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/download'
+  fullPaths: '/' | '/clean-audio' | '/download'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/download'
-  id: '__root__' | '/' | '/download'
+  to: '/' | '/clean-audio' | '/download'
+  id: '__root__' | '/' | '/clean-audio' | '/download'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CleanAudioRoute: typeof CleanAudioRoute
   DownloadRoute: typeof DownloadRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clean-audio': {
+      id: '/clean-audio'
+      path: '/clean-audio'
+      fullPath: '/clean-audio'
+      preLoaderRoute: typeof CleanAudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/download': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CleanAudioRoute: CleanAudioRoute,
   DownloadRoute: DownloadRoute,
 }
 export const routeTree = rootRouteImport
