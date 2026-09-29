@@ -165,7 +165,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request_id = request.headers.get("X-Request-ID") or f"req_{secrets.token_urlsafe(12)}"
         request.state.request_id = request_id[:128]
         length = request.headers.get("content-length")
-        is_upload = request.url.path == f"{settings.api_prefix}/audio/jobs"
+        is_upload = request.url.path == f"{settings.api_prefix}/audio/jobs" or request.url.path.startswith(f"{settings.api_prefix}/audio/tools/")
         limit = settings.max_upload_bytes if is_upload else settings.max_request_bytes
         if length and int(length) > limit:
             return _error_response(

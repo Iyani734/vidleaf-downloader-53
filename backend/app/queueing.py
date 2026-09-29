@@ -48,6 +48,18 @@ class DownloadQueue:
         )
         return queued.id
 
+    def enqueue_audio_tool(self, job_id: str) -> str:
+        from app.audio_tools import run_audio_tool_job
+
+        queued = self.queue.enqueue(
+            run_audio_tool_job,
+            job_id,
+            job_timeout=self.settings.worker_job_timeout_seconds,
+            result_ttl=600,
+            failure_ttl=86_400,
+        )
+        return queued.id
+
     def cancel_queued(self, task_id: str | None) -> None:
         if not task_id:
             return
@@ -87,6 +99,11 @@ class ThreadedDownloadQueue:
         from app.audio_tasks import run_audio_clean_job
 
         return self._start(run_audio_clean_job, job_id)
+
+    def enqueue_audio_tool(self, job_id: str) -> str:
+        from app.audio_tools import run_audio_tool_job
+
+        return self._start(run_audio_tool_job, job_id)
 
     def _start(self, target, job_id: str) -> str:
         task_id = f"local_{job_id}"

@@ -23,6 +23,10 @@ class JobRecord(ApiModel):
     source_filename: str | None = None
     source_path: str | None = None
     output_format: str | None = None
+    tool: str | None = None
+    trim_start_ms: int | None = None
+    trim_end_ms: int | None = None
+    target_bytes: int | None = None
     audio_format: str | None = None
     audio_bitrate_kbps: int | None = None
     allow_quality_fallback: bool = False
