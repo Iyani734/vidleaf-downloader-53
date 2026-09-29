@@ -31,7 +31,7 @@ async function forward(request: Request, splat: string | undefined) {
 
   const body =
     request.method === "GET" || request.method === "HEAD"
-      ? undefined
+      ? null
       : await request.arrayBuffer();
 
   const upstream = await fetch(target, {
