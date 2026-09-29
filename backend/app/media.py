@@ -20,6 +20,8 @@ def mime_type_for(extension: str) -> str:
         "m4a": "audio/mp4",
         "mp3": "audio/mpeg",
         "wav": "audio/wav",
+        "flac": "audio/flac",
+        "ogg": "audio/ogg",
     }[extension]
 
 

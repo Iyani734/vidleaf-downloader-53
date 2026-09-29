@@ -165,7 +165,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request_id = request.headers.get("X-Request-ID") or f"req_{secrets.token_urlsafe(12)}"
         request.state.request_id = request_id[:128]
         length = request.headers.get("content-length")
-        is_upload = request.url.path == f"{settings.api_prefix}/audio/jobs"
+        is_upload = request.url.path == f"{settings.api_prefix}/audio/jobs" or request.url.path.startswith(f"{settings.api_prefix}/audio/tools/")
         limit = settings.max_upload_bytes if is_upload else settings.max_request_bytes
         if length and int(length) > limit:
             return _error_response(
@@ -418,6 +418,99 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception as exc:
             runtime.storage.delete_job(job_id)
             raise ApiError("WORKER_UNAVAILABLE", "The cleanup queue is unavailable. Please retry shortly.", status_code=503) from exc
+        return _public_job(job, request, request.app.state.tokens, settings)
+
+    @app.post(
+        f"{settings.api_prefix}/audio/tools/{{tool}}",
+        response_model=DownloadJobResponse,
+        status_code=202,
+        responses={413: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+        tags=["audio"],
+    )
+    async def create_audio_tool_job(
+        request: Request,
+        tool: str,
+        file: UploadFile = File(...),
+        bitrate_kbps: int | None = Form(None, alias="bitrateKbps"),
+        start_ms: int | None = Form(None, alias="startMs"),
+        end_ms: int | None = Form(None, alias="endMs"),
+        target_bytes: int | None = Form(None, alias="targetBytes"),
+        runtime: Runtime = Depends(runtime_for),
+        owner_id: str = Depends(owner_for),
+    ) -> DownloadJobResponse:
+        from app.audio_tools import ALLOWED_INPUTS, MP3_BITRATES, TOOLS
+
+        if tool not in TOOLS:
+            raise ApiError("UNSUPPORTED_TOOL", "This audio tool is not available.", status_code=404)
+        if bitrate_kbps is not None and bitrate_kbps not in MP3_BITRATES:
+            raise ApiError("UNSUPPORTED_BITRATE", "Choose a supported MP3 quality.", status_code=422)
+        if tool == "cut":
+            if start_ms is None or end_ms is None or start_ms < 0 or end_ms - start_ms < 100:
+                raise ApiError("INVALID_SELECTION", "Choose a start and end time at least 0.1 s apart.", status_code=422)
+        if target_bytes is not None and not (100_000 <= target_bytes <= settings.max_upload_bytes):
+            raise ApiError("INVALID_TARGET_SIZE", "Choose a target size between 0.1 MB and the upload limit.", status_code=422)
+
+        original = (file.filename or "file").rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+        suffix = original.rsplit(".", 1)[-1].lower() if "." in original else ""
+        if suffix not in ALLOWED_INPUTS[tool]:
+            raise ApiError("UNSUPPORTED_FILE", "This file type isn't supported by this tool.", status_code=422)
+        content_type = (file.content_type or "").lower()
+        if content_type and not content_type.startswith(("audio/", "video/", "application/octet-stream")):
+            raise ApiError("UNSUPPORTED_FILE", "This file doesn't look like audio or video.", status_code=422)
+
+        job_id = f"aud_{secrets.token_urlsafe(15)}"
+        work_dir = runtime.storage.working_directory(job_id)
+        target = work_dir / f"source.{suffix}"
+        written = 0
+        try:
+            with target.open("wb") as handle:
+                while chunk := await file.read(1024 * 1024):
+                    written += len(chunk)
+                    if written > settings.max_upload_bytes:
+                        raise ApiError(
+                            "REQUEST_TOO_LARGE",
+                            "That file is larger than the allowed upload size.",
+                            status_code=413,
+                            details={"maximumBytes": settings.max_upload_bytes},
+                        )
+                    handle.write(chunk)
+        except ApiError:
+            runtime.storage.delete_job(job_id)
+            raise
+        finally:
+            await file.close()
+        if written == 0:
+            runtime.storage.delete_job(job_id)
+            raise ApiError("EMPTY_UPLOAD", "The uploaded file is empty.", status_code=422)
+
+        output_ext = suffix if tool == "cut" else "mp3"
+        job = JobRecord.new(
+            job_id=job_id,
+            owner_id=owner_id,
+            source_url=f"upload://{original}",
+            quality="audio",
+            container=output_ext,
+            audio_format=output_ext,
+            audio_bitrate_kbps=bitrate_kbps,
+            expiry_seconds=settings.job_expiry_seconds,
+            job_type="audio_tool",
+            source_filename=original,
+            source_path=str(target),
+            output_format=output_ext,
+        )
+        job.tool = tool
+        job.trim_start_ms = start_ms
+        job.trim_end_ms = end_ms
+        job.target_bytes = target_bytes
+        job.total_bytes = written
+        job.title = original
+        runtime.repository.create(job)
+        try:
+            job.task_id = runtime.queue.enqueue_audio_tool(job.job_id)
+            runtime.repository.publish(job, "queued")
+        except Exception as exc:
+            runtime.storage.delete_job(job_id)
+            raise ApiError("WORKER_UNAVAILABLE", "Processing is busy right now. Please retry shortly.", status_code=503) from exc
         return _public_job(job, request, request.app.state.tokens, settings)
 
     @app.get(f"{settings.api_prefix}/downloads", response_model=JobListResponse, tags=["downloads"])
